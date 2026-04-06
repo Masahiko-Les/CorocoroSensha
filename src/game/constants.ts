@@ -29,6 +29,16 @@ export const ENEMY_SPEED = 0.7;
 export const ENEMY_HP = 1;
 export const ENEMY_CONTACT_DAMAGE = 1;
 
+// 黄色敵
+export const ENEMY_YELLOW_SPEED = 1.5;       // 赤の約2倍
+export const ENEMY_YELLOW_RANDOM_MS = 1500;  // ランダム移動の継続時間
+export const ENEMY_YELLOW_CHASE_MS  = 2000;  // 追尾移動の継続時間
+
+// ------------------------------------------------
+// アイテム
+// ------------------------------------------------
+export const ITEM_RADIUS = 12;
+
 // ------------------------------------------------
 // セルタイプ
 // ------------------------------------------------
