@@ -1,20 +1,39 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, StatusBar } from 'react-native';
+import { useWindowDimensions } from 'react-native';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import { GameBoard } from './src/components/GameBoard';
 
 export default function App() {
+  const { width, height } = useWindowDimensions();
+  const [orientationReady, setOrientationReady] = useState(false);
+
+  useEffect(() => {
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).then(() => {
+      setOrientationReady(true);
+    });
+    return () => {
+      ScreenOrientation.unlockAsync();
+    };
+  }, []);
+
+  if (!orientationReady) return <View style={styles.bg} />;
+
+  // 横向き確定後にwidth > height になる
+  const screenW = Math.max(width, height);
+  const screenH = Math.min(width, height);
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
+    <View style={styles.bg}>
+      <StatusBar hidden />
+      <GameBoard viewWidth={screenW} viewHeight={screenH} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  bg: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#212121',
   },
 });
