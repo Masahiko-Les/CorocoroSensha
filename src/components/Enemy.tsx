@@ -11,9 +11,10 @@ export const Enemy: React.FC<Props> = ({ enemy }) => {
   const { pos, hp, maxHp, enemyType } = enemy;
 
   const isYellow = enemyType === 'yellow';
-  const bodyFill = isYellow ? '#FFD600' : '#F44336';
-  const bodyStroke = isYellow ? '#E65100' : '#B71C1C';
-  const dotFill = isYellow ? '#E65100' : '#B71C1C';
+  const isBlue   = enemyType === 'blue';
+  const bodyFill   = isYellow ? '#FFD600' : isBlue ? '#1565C0' : '#F44336';
+  const bodyStroke = isYellow ? '#E65100' : isBlue ? '#0D47A1' : '#B71C1C';
+  const dotFill    = isYellow ? '#E65100' : isBlue ? '#0D47A1' : '#B71C1C';
 
   // HP バー（maxHp > 1 のときのみ表示）
   const barW = ENEMY_RADIUS * 2;

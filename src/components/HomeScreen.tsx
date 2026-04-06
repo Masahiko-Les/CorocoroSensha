@@ -5,29 +5,52 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import Svg, { Circle, Line } from 'react-native-svg';
 
 interface Props {
+  clearedStages: boolean[];
   onSelectStage: (stageIndex: number) => void;
+  onOpenShop: () => void;
 }
 
-// ステージごとの難易度カラー
-function stageColor(stageIndex: number): string {
-  if (stageIndex >= 7) return '#C62828'; // 8-10: 赤（HP3）
-  if (stageIndex >= 4) return '#E65100'; // 5-7: オレンジ（HP2）
-  return '#2E7D32';                       // 1-4: 緑（HP1）
+// ステージボタンの状態
+type StageStatus = 'cleared' | 'unlocked' | 'locked';
+
+function getStageStatus(i: number, clearedStages: boolean[]): StageStatus {
+  if (clearedStages[i]) return 'cleared';
+  // TODO: テスト用全開放 — リリース前に元に戻すこと
+  return 'unlocked';
+  // ステージ0は常に解放。それ以外は前のステージをクリア済みなら解放
+  // if (i === 0 || clearedStages[i - 1]) return 'unlocked';
+  // return 'locked';
 }
-function stageBorderColor(stageIndex: number): string {
-  if (stageIndex >= 7) return '#EF9A9A';
-  if (stageIndex >= 4) return '#FFCC80';
+
+function stageBgColor(status: StageStatus, stageIndex: number): string {
+  if (status === 'cleared')  return '#1565C0';           // 青: クリア済み
+  if (status === 'locked')   return '#263238';           // 暗灰: ロック
+  // unlocked: 難易度カラー
+  if (stageIndex >= 7) return '#C62828';
+  if (stageIndex >= 4) return '#E65100';
+  return '#2E7D32';
+}
+
+function stageBorderCol(status: StageStatus, stageIndex: number): string {
+  if (status === 'cleared') return '#82B1FF';
+  if (status === 'locked')  return '#37474F';
+  if (stageIndex >= 20) return '#CF6679';
+  if (stageIndex >= 14) return '#EF9A9A';
+  if (stageIndex >= 7)  return '#FFCC80';
   return '#81C784';
 }
+
 function diffLabel(stageIndex: number): string {
-  if (stageIndex >= 7) return 'HARD';
-  if (stageIndex >= 4) return 'NORMAL';
+  if (stageIndex >= 20) return 'EXPERT';
+  if (stageIndex >= 14) return 'HARD';
+  if (stageIndex >= 7)  return 'NORMAL';
   return 'EASY';
 }
 
-export const HomeScreen: React.FC<Props> = ({ onSelectStage }) => {
+export const HomeScreen: React.FC<Props> = ({ clearedStages, onSelectStage, onOpenShop }) => {
   return (
     <View style={styles.container}>
       {/* タイトルエリア */}
@@ -35,36 +58,62 @@ export const HomeScreen: React.FC<Props> = ({ onSelectStage }) => {
         <Text style={styles.title}>コロコロ戦車</Text>
         <Text style={styles.subtitle}>~ COROCORO SENSHA ~</Text>
 
-        {/* 戦車イラスト */}
+        {/* 戦車イラスト（SVGで正確に描画） */}
         <View style={styles.tankArea}>
-          <View style={styles.barrel} />
-          <View style={styles.tankBody}>
-            <Text style={styles.tankEmoji}>🟢</Text>
-          </View>
+          <Svg width={96} height={56}>
+            {/* 砲身（中心から右へ） */}
+            <Line
+              x1={32} y1={28}
+              x2={88} y2={28}
+              stroke="#555"
+              strokeWidth={9}
+              strokeLinecap="round"
+            />
+            {/* 本体 */}
+            <Circle cx={32} cy={28} r={24} fill="#4CAF50" stroke="#2E7D32" strokeWidth={3} />
+          </Svg>
         </View>
+
+        <TouchableOpacity style={styles.shopBtn} onPress={onOpenShop}>
+          <Text style={styles.shopBtnText}>🔧 戦車の整備</Text>
+        </TouchableOpacity>
       </View>
 
       {/* ステージ選択グリッド 2行 × 5列 */}
       <View style={styles.stageArea}>
         <Text style={styles.stageLabel}>STAGE SELECT</Text>
         <View style={styles.grid}>
-          {Array.from({ length: 10 }, (_, i) => (
-            <TouchableOpacity
-              key={i}
-              style={[
-                styles.stageBtn,
-                { backgroundColor: stageColor(i), borderColor: stageBorderColor(i) },
-              ]}
-              onPress={() => onSelectStage(i)}
-            >
-              <Text style={styles.stageNum}>{i + 1}</Text>
-              <Text style={styles.stageDiff}>{diffLabel(i)}</Text>
-            </TouchableOpacity>
-          ))}
+          {Array.from({ length: 30 }, (_, i) => {
+            const status = getStageStatus(i, clearedStages);
+            const isLocked = status === 'locked';
+            const isCleared = status === 'cleared';
+            return (
+              <TouchableOpacity
+                key={i}
+                style={[
+                  styles.stageBtn,
+                  { backgroundColor: stageBgColor(status, i), borderColor: stageBorderCol(status, i) },
+                  isLocked ? styles.stageBtnLocked : null,
+                ]}
+                onPress={() => !isLocked && onSelectStage(i)}
+                disabled={isLocked}
+              >
+                {isLocked ? (
+                  <Text style={styles.lockIcon}>🔒</Text>
+                ) : (
+                  <>
+                    <Text style={styles.stageNum}>
+                      {isCleared ? '✓ ' : ''}{i + 1}
+                    </Text>
+                    <Text style={styles.stageDiff}>{diffLabel(i)}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
-      <Text style={styles.hint}>スマホを傾けて操作</Text>
     </View>
   );
 };
@@ -97,31 +146,21 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   tankArea: {
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 12,
   },
-  barrel: {
-    width: 10,
-    height: 36,
-    backgroundColor: '#555',
-    borderRadius: 4,
-    marginBottom: -6,
-    alignSelf: 'center',
-    marginLeft: 24,
+  shopBtn: {
+    marginTop: 12,
+    backgroundColor: '#37474F',
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#78909C',
   },
-  tankBody: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#4CAF50',
-    borderWidth: 3,
-    borderColor: '#2E7D32',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tankEmoji: {
-    fontSize: 24,
+  shopBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   stageArea: {
     alignItems: 'center',
@@ -149,6 +188,14 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
     elevation: 6,
+  },
+  stageBtnLocked: {
+    opacity: 0.45,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  lockIcon: {
+    fontSize: 18,
   },
   stageNum: {
     color: '#fff',

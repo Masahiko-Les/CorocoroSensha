@@ -4,16 +4,17 @@ import Svg, { Rect, Circle, G } from 'react-native-svg';
 
 import {
   TILE_SIZE,
-  PLAYER_RADIUS,
-  PLAYER_MAX_HP, PLAYER_INVINCIBLE_MS,
-  BULLET_RADIUS, BULLET_SPEED, PLAYER_FIRE_INTERVAL, BULLET_DAMAGE,
+  PLAYER_RADIUS, PLAYER_INVINCIBLE_MS,
+  BULLET_RADIUS, BULLET_SPEED, BULLET_DAMAGE,
   ENEMY_RADIUS, ENEMY_SPEED, ENEMY_CONTACT_DAMAGE,
   ENEMY_YELLOW_SPEED, ENEMY_YELLOW_RANDOM_MS, ENEMY_YELLOW_CHASE_MS, ITEM_RADIUS,
-  CELL_WALL, CELL_GOAL, CELL_FLOOR, CELL_START, CELL_ENEMY,
+  ENEMY_BLUE_SPEED, ENEMY_BLUE_FLEE_SPEED, ENEMY_BLUE_HP, ENEMY_BLUE_FLEE_MS, ENEMY_BLUE_RANDOM_MS,
+  CELL_WALL, CELL_GOAL, CELL_FLOOR, CELL_START, CELL_ENEMY, CELL_ITEM,
+  STAGE_REWARDS, FIRE_RATE_LEVELS, MOVE_SPEED_LEVELS, MAX_HP_LEVELS,
 } from '../game/constants';
-import { getStageMap, getMapCols, getMapRows, getStartPos, getEnemyStartPositions, getYellowEnemyStartPositions, getStageItemPositions, getCellAt, getEnemyHp, STAGE_COUNT } from '../game/stage';
+import { getStageMap, getMapCols, getMapRows, getStartPos, getEnemyStartPositions, getYellowEnemyStartPositions, getBlueEnemyStartPositions, getStageItemPositions, getCellAt, getEnemyHp, STAGE_COUNT } from '../game/stage';
 import { dist, normalize, resolveWallCollision } from '../game/utils';
-import { BulletState, EnemyState, GamePhase, ItemState, PlayerState } from '../game/types';
+import { BulletState, EnemyState, GamePhase, ItemState, PlayerState, PlayerUpgrades } from '../game/types';
 import { useTiltControls } from '../hooks/useTiltControls';
 import { useGameLoop } from '../hooks/useGameLoop';
 import { Player } from './Player';
@@ -22,11 +23,6 @@ import { Bullet } from './Bullet';
 import { Item } from './Item';
 import { Hud } from './Hud';
 
-// --------------------------------------------------
-// corocoro_go と同じスピード定数
-// --------------------------------------------------
-const SENSOR_MOVE_SPEED = 11;
-
 // タイル色
 function tileColor(cell: number): string {
   switch (cell) {
@@ -34,6 +30,7 @@ function tileColor(cell: number): string {
     case CELL_GOAL:  return '#FFD600';
     case CELL_START: return '#A5D6A7';
     case CELL_ENEMY: return '#FFCCBC';
+    case CELL_ITEM:  return '#BDBDBD';
     default:         return '#BDBDBD';
   }
 }
@@ -49,7 +46,7 @@ function randomDir() {
   return { x: Math.cos(a), y: Math.sin(a) };
 }
 
-function createInitialState(stageIndex: number): {
+function createInitialState(stageIndex: number, playerMaxHp: number): {
   player: PlayerState;
   bullets: BulletState[];
   enemies: EnemyState[];
@@ -60,19 +57,19 @@ function createInitialState(stageIndex: number): {
     pos: { ...startPos },
     vel: { x: 0, y: 0 },
     angle: 0,
-    hp: PLAYER_MAX_HP,
+    hp: playerMaxHp,
     invincibleUntil: 0,
   };
 
-  const hp = getEnemyHp(stageIndex);
+  const yellowHp = getEnemyHp(stageIndex);
   const now = Date.now();
 
   const redPositions = getEnemyStartPositions(stageIndex, TILE_SIZE);
   const redEnemies: EnemyState[] = redPositions.map((p) => ({
     id: ++enemyIdCounter,
     pos: { ...p },
-    hp,
-    maxHp: hp,
+    hp: 1,       // 赤は常にHP1固定
+    maxHp: 1,
     enemyType: 'red' as const,
     mode: 'chase' as const,
     modeUntil: 0,
@@ -83,13 +80,34 @@ function createInitialState(stageIndex: number): {
   const yellowEnemies: EnemyState[] = yellowPositions.map((p) => ({
     id: ++enemyIdCounter,
     pos: { ...p },
-    hp,
-    maxHp: hp,
+    hp: yellowHp,
+    maxHp: yellowHp,
     enemyType: 'yellow' as const,
     mode: 'random' as const,
     modeUntil: now + ENEMY_YELLOW_RANDOM_MS,
     randomDir: randomDir(),
   }));
+
+  const bluePositions = getBlueEnemyStartPositions(stageIndex, TILE_SIZE);
+  const blueEnemies: EnemyState[] = bluePositions.map((p) => ({
+    id: ++enemyIdCounter,
+    pos: { ...p },
+    hp: ENEMY_BLUE_HP,
+    maxHp: ENEMY_BLUE_HP,
+    enemyType: 'blue' as const,
+    mode: 'flee' as const,
+    modeUntil: now + ENEMY_BLUE_FLEE_MS,
+    randomDir: randomDir(),
+  }));
+
+  // 黄・青は全数確保し、残りスロットを赤で補充（後半ステージほど黄・青の割合が増える）
+  const MAX_ENEMIES = 12;
+  const remainingForRed = Math.max(0, MAX_ENEMIES - yellowEnemies.length - blueEnemies.length);
+  const allEnemies = [
+    ...redEnemies.slice(0, remainingForRed),
+    ...yellowEnemies,
+    ...blueEnemies,
+  ];
 
   const itemPositions = getStageItemPositions(stageIndex, TILE_SIZE);
   let itemId = 0;
@@ -99,7 +117,7 @@ function createInitialState(stageIndex: number): {
     type: 'hp' as const,
   }));
 
-  return { player, bullets: [], enemies: [...redEnemies, ...yellowEnemies], items };
+  return { player, bullets: [], enemies: allEnemies, items };
 }
 
 // --------------------------------------------------
@@ -109,23 +127,37 @@ interface Props {
   viewWidth: number;
   viewHeight: number;
   stageIndex: number;
+  upgrades: PlayerUpgrades;
   onGoHome: () => void;
   onNextStage: () => void;
+  onClear: () => void;
 }
 
-export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, onGoHome, onNextStage }) => {
+export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, upgrades, onGoHome, onNextStage, onClear }) => {
   // マップのピクセルサイズ（stageIndex に応じて決まる）
   const MAP_PX_W = getMapCols(stageIndex) * TILE_SIZE;
   const MAP_PX_H = getMapRows(stageIndex) * TILE_SIZE;
 
+  // アップグレードから実効値を算出
+  const effectiveMoveSpeed    = MOVE_SPEED_LEVELS[upgrades.moveSpeed];
+  const effectiveFireInterval = FIRE_RATE_LEVELS[upgrades.fireRate];
+  const effectiveMaxHp        = MAX_HP_LEVELS[upgrades.maxHp];
+  const stageReward           = STAGE_REWARDS[stageIndex] ?? 0;
+
   // ---------- 状態 ----------
   const [phase, setPhase] = useState<GamePhase>('playing');
-  const stateRef = useRef(createInitialState(stageIndex));
-  const [renderTick, setRenderTick] = useState(0); // 再描画トリガー
+  const stateRef = useRef(createInitialState(stageIndex, effectiveMaxHp));
+  const [renderTick, setRenderTick] = useState(0);
   const [blinkOn, setBlinkOn]   = useState(true);
 
   // 自動発射タイマー
   const lastFireRef = useRef<number>(0);
+
+  // ステージクリア済みフラグ（重複 onClear 防止）
+  const clearedRef = useRef(false);
+  // onClear を ref に保持してクロージャ問題を回避
+  const onClearRef = useRef(onClear);
+  onClearRef.current = onClear;
 
   // 点滅タイマー
   const blinkTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -137,12 +169,13 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
   const handleRestart = useCallback(() => {
     bulletIdCounter = 0;
     enemyIdCounter  = 0;
-    stateRef.current = createInitialState(stageIndex);
+    stateRef.current = createInitialState(stageIndex, effectiveMaxHp);
     lastFireRef.current = 0;
+    clearedRef.current  = false;
     setPhase('playing');
     setBlinkOn(true);
     setRenderTick((t) => t + 1);
-  }, [stageIndex]);
+  }, [stageIndex, effectiveMaxHp]);
 
   // ---------- 一時停止 ----------
   const handleTap = useCallback(() => {
@@ -197,14 +230,14 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
       }
 
       // 位置更新 + 壁衝突
-      const nextX = st.player.pos.x + moveX * SENSOR_MOVE_SPEED * dtScale;
-      const nextY = st.player.pos.y + moveY * SENSOR_MOVE_SPEED * dtScale;
+      const nextX = st.player.pos.x + moveX * effectiveMoveSpeed * dtScale;
+      const nextY = st.player.pos.y + moveY * effectiveMoveSpeed * dtScale;
       st.player.pos = resolveWallCollision({ x: nextX, y: nextY }, PLAYER_RADIUS, stageIndex);
-      // vel は将来の慃性復活用に保持
-      st.player.vel = { x: moveX * SENSOR_MOVE_SPEED, y: moveY * SENSOR_MOVE_SPEED };
+      // vel は将来の慣性復活用に保持
+      st.player.vel = { x: moveX * effectiveMoveSpeed, y: moveY * effectiveMoveSpeed };
 
       // ---- 自動発射 ----
-      if (now - lastFireRef.current >= PLAYER_FIRE_INTERVAL) {
+      if (now - lastFireRef.current >= effectiveFireInterval) {
         lastFireRef.current = now;
         const bSpeed = BULLET_SPEED;
         st.bullets.push({
@@ -278,6 +311,48 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
             e.randomDir = randomDir();
           }
           e.pos = newEPos;
+        } else if (e.enemyType === 'blue') {
+          // 青: 逃げる ↔ ランダム移動 の切替
+          if (now > e.modeUntil) {
+            if (e.mode === 'flee') {
+              e.mode = 'random';
+              e.modeUntil = now + ENEMY_BLUE_RANDOM_MS;
+              e.randomDir = randomDir();
+            } else {
+              e.mode = 'flee';
+              e.modeUntil = now + ENEMY_BLUE_FLEE_MS;
+            }
+          }
+          if (e.mode === 'flee') {
+            // プレイヤーから遠ざかる方向へ逃げる
+            const fleeDir = normalize({ x: e.pos.x - st.player.pos.x, y: e.pos.y - st.player.pos.y });
+            const prevPos = { ...e.pos };
+            const newEPos = resolveWallCollision({
+              x: e.pos.x + fleeDir.x * ENEMY_BLUE_FLEE_SPEED * dtScale,
+              y: e.pos.y + fleeDir.y * ENEMY_BLUE_FLEE_SPEED * dtScale,
+            }, ENEMY_RADIUS, stageIndex);
+            if (dist(prevPos, newEPos) < 0.1) {
+              // 壁に詰まったらランダム方向で回避
+              e.randomDir = randomDir();
+              e.pos = resolveWallCollision({
+                x: e.pos.x + e.randomDir.x * ENEMY_BLUE_FLEE_SPEED * dtScale,
+                y: e.pos.y + e.randomDir.y * ENEMY_BLUE_FLEE_SPEED * dtScale,
+              }, ENEMY_RADIUS, stageIndex);
+            } else {
+              e.pos = newEPos;
+            }
+          } else {
+            // ランダム移動（遅い）
+            const prevPos = { ...e.pos };
+            const newEPos = resolveWallCollision({
+              x: e.pos.x + e.randomDir.x * ENEMY_BLUE_SPEED * dtScale,
+              y: e.pos.y + e.randomDir.y * ENEMY_BLUE_SPEED * dtScale,
+            }, ENEMY_RADIUS, stageIndex);
+            if (dist(prevPos, newEPos) < 0.1) {
+              e.randomDir = randomDir();
+            }
+            e.pos = newEPos;
+          }
         } else {
           // 赤: 追尾のみ
           const dir = normalize({
@@ -353,7 +428,7 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
       // ---- アイテム収集 ----
       st.items = st.items.filter((item) => {
         if (dist(st.player.pos, item.pos) < PLAYER_RADIUS + ITEM_RADIUS) {
-          if (st.player.hp < PLAYER_MAX_HP) st.player.hp += 1;
+          if (st.player.hp < effectiveMaxHp) st.player.hp += 1;
           return false;
         }
         return true;
@@ -363,6 +438,10 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
       const pCol = Math.floor(st.player.pos.x / TILE_SIZE);
       const pRow = Math.floor(st.player.pos.y / TILE_SIZE);
       if (getCellAt(stageIndex, pCol, pRow) === CELL_GOAL && st.enemies.length === 0) {
+        if (!clearedRef.current) {
+          clearedRef.current = true;
+          onClearRef.current();
+        }
         setPhase('clear');
         return;
       }
@@ -376,7 +455,7 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
 
       setRenderTick((t) => t + 1);
     },
-    [phase, tiltRef, stageIndex, MAP_PX_W, MAP_PX_H],
+    [phase, tiltRef, stageIndex, MAP_PX_W, MAP_PX_H, effectiveMoveSpeed, effectiveFireInterval, effectiveMaxHp],
   );
 
   useGameLoop(tick, phase === 'playing');
@@ -435,8 +514,10 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
 
       <Hud
           hp={st.player.hp}
+          maxHp={effectiveMaxHp}
           phase={phase}
           stageName={`ステージ ${stageIndex + 1}`}
+          stageReward={stageReward}
           onRestart={handleRestart}
           onResume={handleResume}
           onGoHome={onGoHome}

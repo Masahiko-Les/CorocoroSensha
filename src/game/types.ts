@@ -17,7 +17,7 @@ export interface BulletState {
   vel: Vec2;
 }
 
-export type EnemyType = 'red' | 'yellow';
+export type EnemyType = 'red' | 'yellow' | 'blue';
 
 export interface EnemyState {
   id: number;
@@ -25,8 +25,8 @@ export interface EnemyState {
   hp: number;
   maxHp: number;
   enemyType: EnemyType;
-  // 黄色敵専用フィールド
-  mode: 'random' | 'chase';
+  // 黄色・青色敵用フィールド
+  mode: 'random' | 'chase' | 'flee';
   modeUntil: number;      // このタイムスタンプを過ぎたらモード切替
   randomDir: Vec2;        // ランダム移動方向
 }
@@ -38,3 +38,9 @@ export interface ItemState {
 }
 
 export type GamePhase = 'playing' | 'paused' | 'clear' | 'gameover';
+
+export interface PlayerUpgrades {
+  fireRate: number;   // 0-3 (レベル)
+  moveSpeed: number;  // 0-3
+  maxHp: number;      // 0-3
+}

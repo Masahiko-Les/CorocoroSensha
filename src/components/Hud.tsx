@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { GamePhase } from '../game/types';
-import { PLAYER_MAX_HP } from '../game/constants';
 
 interface Props {
   hp: number;
+  maxHp: number;
   phase: GamePhase;
   stageName: string;
+  stageReward: number;
   onRestart: () => void;
   onResume: () => void;
   onGoHome: () => void;
@@ -14,11 +15,11 @@ interface Props {
   isLastStage: boolean;
 }
 
-function renderHP(hp: number): string {
-  return '❤️'.repeat(hp) + '🖤'.repeat(Math.max(0, PLAYER_MAX_HP - hp));
+function renderHP(hp: number, maxHp: number): string {
+  return '❤️'.repeat(Math.max(0, hp)) + '🖤'.repeat(Math.max(0, maxHp - hp));
 }
 
-export const Hud: React.FC<Props> = ({ hp, phase, stageName, onRestart, onResume, onGoHome, onNextStage, isLastStage }) => {
+export const Hud: React.FC<Props> = ({ hp, maxHp, phase, stageName, stageReward, onRestart, onResume, onGoHome, onNextStage, isLastStage }) => {
   return (
     <View style={styles.container} pointerEvents="box-none">
       {/* トップバー: ホームボタン / ステージ名 / HP */}
@@ -27,7 +28,7 @@ export const Hud: React.FC<Props> = ({ hp, phase, stageName, onRestart, onResume
           <Text style={styles.homeBtnText}>⌂ HOME</Text>
         </TouchableOpacity>
         <Text style={styles.title}>{stageName}</Text>
-        <Text style={styles.hp}>{renderHP(hp)}</Text>
+        <Text style={styles.hp}>{renderHP(hp, maxHp)}</Text>
       </View>
 
       {/* 一時停止オーバーレイ */}
@@ -48,6 +49,9 @@ export const Hud: React.FC<Props> = ({ hp, phase, stageName, onRestart, onResume
               ? (isLastStage ? '🏆 GAME CLEAR!' : '🎉 STAGE CLEAR!')
               : '💀 GAME OVER'}
           </Text>
+          {phase === 'clear' && (
+            <Text style={styles.rewardText}>💰 報奨金 +{stageReward.toLocaleString()}</Text>
+          )}
           {phase === 'clear' && !isLastStage && (
             <TouchableOpacity style={styles.nextStageBtn} onPress={onNextStage}>
               <Text style={styles.nextStageText}>次のステージへ</Text>
@@ -109,10 +113,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 36,
     fontWeight: 'bold',
-    marginBottom: 24,
+    marginBottom: 8,
     textShadowColor: '#000',
     textShadowRadius: 8,
     textShadowOffset: { width: 2, height: 2 },
+  },
+  rewardText: {
+    color: '#FFD600',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textShadowColor: '#000',
+    textShadowRadius: 4,
+    textShadowOffset: { width: 1, height: 1 },
   },
   restartBtn: {
     backgroundColor: '#4CAF50',
