@@ -189,9 +189,11 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
       const moveX = -ay;
       const moveY = -ax;
 
-      // 砲身方向保持（自動発射用）
+      // 砲身方向保持（8方向スナップ）
       if (Math.abs(moveX) > 0.05 || Math.abs(moveY) > 0.05) {
-        st.player.angle = Math.atan2(moveY, moveX);
+        const rawAngle = Math.atan2(moveY, moveX);
+        const step = Math.PI / 4; // 45°
+        st.player.angle = Math.round(rawAngle / step) * step;
       }
 
       // 位置更新 + 壁衝突
