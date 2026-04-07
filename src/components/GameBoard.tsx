@@ -30,7 +30,7 @@ function tileColor(cell: number): string {
     case CELL_WALL:         return '#5D4037';
     case CELL_GOAL:         return '#FFD600';
     case CELL_START:        return '#A5D6A7';
-    case CELL_ENEMY:        return '#FFCCBC';
+    case CELL_ENEMY:        return '#BDBDBD'; // 床と同色
     case CELL_ITEM:         return '#BDBDBD';
     case CELL_YELLOW_ENEMY: return '#BDBDBD'; // 床と同色
     case CELL_BLUE_ENEMY:   return '#BDBDBD'; // 床と同色

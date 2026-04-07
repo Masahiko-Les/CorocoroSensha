@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GameBoard } from './src/components/GameBoard';
 import { HomeScreen } from './src/components/HomeScreen';
 import { ShopScreen } from './src/components/ShopScreen';
+import { SettingsScreen } from './src/components/SettingsScreen';
 import { STAGE_COUNT, } from './src/game/stage';
 import {
   STAGE_REWARDS,
@@ -16,7 +17,7 @@ import { PlayerUpgrades } from './src/game/types';
 
 const STORAGE_KEY = 'corocoro_save_v1';
 
-type Screen = 'home' | 'game' | 'shop';
+type Screen = 'home' | 'game' | 'shop' | 'settings';
 
 const DEFAULT_UPGRADES: PlayerUpgrades = { fireRate: 0, moveSpeed: 0, maxHp: 0 };
 
@@ -67,6 +68,14 @@ export default function App() {
     };
   }, []);
 
+  const handleReset = useCallback(() => {
+    setMoney(0);
+    setUpgrades(DEFAULT_UPGRADES);
+    setClearedStages(Array.from({ length: 30 }, () => false));
+    AsyncStorage.removeItem(STORAGE_KEY);
+    setScreen('home');
+  }, []);
+
   const handleNextStage = () => {
     if (selectedStage + 1 < STAGE_COUNT) {
       setSelectedStage((s) => s + 1);
@@ -110,6 +119,7 @@ export default function App() {
           clearedStages={clearedStages}
           onSelectStage={(idx) => { setSelectedStage(idx); setScreen('game'); }}
           onOpenShop={() => setScreen('shop')}
+          onOpenSettings={() => setScreen('settings')}
         />
       ) : screen === 'shop' ? (
         <ShopScreen
@@ -117,6 +127,11 @@ export default function App() {
           upgrades={upgrades}
           onUpgrade={handleUpgrade}
           onGoHome={() => setScreen('home')}
+        />
+      ) : screen === 'settings' ? (
+        <SettingsScreen
+          onGoHome={() => setScreen('home')}
+          onReset={handleReset}
         />
       ) : (
         <GameBoard

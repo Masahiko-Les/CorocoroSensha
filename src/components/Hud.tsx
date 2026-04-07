@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { GamePhase } from '../game/types';
 
 interface Props {
@@ -8,6 +8,7 @@ interface Props {
   phase: GamePhase;
   stageName: string;
   stageReward: number;
+  allEnemiesDefeated: boolean;
   onRestart: () => void;
   onResume: () => void;
   onGoHome: () => void;
@@ -19,9 +20,33 @@ function renderHP(hp: number, maxHp: number): string {
   return '❤️'.repeat(Math.max(0, hp)) + '🖤'.repeat(Math.max(0, maxHp - hp));
 }
 
-export const Hud: React.FC<Props> = ({ hp, maxHp, phase, stageName, stageReward, onRestart, onResume, onGoHome, onNextStage, isLastStage }) => {
+export const Hud: React.FC<Props> = ({ hp, maxHp, phase, stageName, stageReward, allEnemiesDefeated, onRestart, onResume, onGoHome, onNextStage, isLastStage }) => {
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (allEnemiesDefeated && phase === 'playing') {
+      // 即座に表示
+      toastOpacity.setValue(1);
+      // 2秒後から1秒かけてフェードアウト
+      const timer = setTimeout(() => {
+        Animated.timing(toastOpacity, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }).start();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [allEnemiesDefeated]);
+
   return (
     <View style={styles.container} pointerEvents="box-none">
+      {/* 全滅通知（ゲーム中のみ、画面下部にトースト表示） */}
+      {allEnemiesDefeated && phase === 'playing' && (
+        <Animated.View style={[styles.defeatedToast, { opacity: toastOpacity }]} pointerEvents="none">
+          <Text style={styles.defeatedText}>✅ おめでとうございます。敵を全て倒しました！</Text>
+        </Animated.View>
+      )}
       {/* トップバー: ホームボタン / ステージ名 / HP */}
       <View style={styles.topBar}>
         <TouchableOpacity onPress={onGoHome} style={styles.homeBtn}>
@@ -108,6 +133,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  defeatedToast: {
+    position: 'absolute',
+    bottom: 24,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  defeatedText: {
+    color: '#B9F6CA',
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   resultText: {
     color: '#fff',

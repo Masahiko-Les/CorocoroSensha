@@ -11,6 +11,7 @@ interface Props {
   clearedStages: boolean[];
   onSelectStage: (stageIndex: number) => void;
   onOpenShop: () => void;
+  onOpenSettings: () => void;
 }
 
 // ステージボタンの状態
@@ -48,7 +49,7 @@ function diffLabel(stageIndex: number): string {
   return 'EASY';
 }
 
-export const HomeScreen: React.FC<Props> = ({ clearedStages, onSelectStage, onOpenShop }) => {
+export const HomeScreen: React.FC<Props> = ({ clearedStages, onSelectStage, onOpenShop, onOpenSettings }) => {
   return (
     <View style={styles.container}>
       {/* タイトルエリア */}
@@ -74,6 +75,9 @@ export const HomeScreen: React.FC<Props> = ({ clearedStages, onSelectStage, onOp
 
         <TouchableOpacity style={styles.shopBtn} onPress={onOpenShop}>
           <Text style={styles.shopBtnText}>🔧 戦車の整備</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.settingsBtn} onPress={onOpenSettings}>
+          <Text style={styles.settingsBtnText}>⚙️ 設定</Text>
         </TouchableOpacity>
       </View>
 
@@ -158,6 +162,20 @@ const styles = StyleSheet.create({
   shopBtnText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  settingsBtn: {
+    marginTop: 24,
+    backgroundColor: '#263238',
+    paddingHorizontal: 20,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#546E7A',
+  },
+  settingsBtnText: {
+    color: '#90A4AE',
+    fontSize: 13,
     fontWeight: 'bold',
   },
   stageArea: {
