@@ -21,8 +21,6 @@ const STORAGE_KEY = 'corocoro_save_v1';
 type Screen = 'home' | 'game' | 'shop' | 'settings' | 'allclear';
 
 const DEFAULT_UPGRADES: PlayerUpgrades = { fireRate: 0, moveSpeed: 0, maxHp: 0 };
-// TODO: 開発用 全レベル10 ↓ リリース前に削除すること
-const DEV_UPGRADES: PlayerUpgrades = { fireRate: 10, moveSpeed: 10, maxHp: 10 };
 
 export default function App() {
   const { width, height } = useWindowDimensions();
@@ -30,7 +28,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('home');
   const [selectedStage, setSelectedStage] = useState<number>(0);
   const [money, setMoney] = useState<number>(0);
-  const [upgrades, setUpgrades] = useState<PlayerUpgrades>(DEV_UPGRADES);
+  const [upgrades, setUpgrades] = useState<PlayerUpgrades>(DEFAULT_UPGRADES);
   const [clearedStages, setClearedStages] = useState<boolean[]>(
     Array.from({ length: 30 }, () => false)
   );
@@ -44,9 +42,7 @@ export default function App() {
         try {
           const saved = JSON.parse(raw);
           if (typeof saved.money === 'number') setMoney(saved.money);
-          // TODO: 開発用 アップグレードをDEV_UPGRADESで固定（リリース前に下の行を有効に戻す）
-          // if (saved.upgrades) setUpgrades(saved.upgrades);
-          setUpgrades(DEV_UPGRADES);
+          if (saved.upgrades) setUpgrades(saved.upgrades);
           if (Array.isArray(saved.clearedStages)) setClearedStages(saved.clearedStages);
         } catch {
           // コーラプト時はデフォルトのまま
