@@ -21,7 +21,9 @@ function getStageStatus(i: number, clearedStages: boolean[]): StageStatus {
   if (clearedStages[i]) return 'cleared';
   // ステージ0は常に解放。それ以外は前のステージをクリア済みなら解放
   if (i === 0 || clearedStages[i - 1]) return 'unlocked';
-  return 'locked';
+  // TODO: 開発用 全ロック解除 ↓ リリース前に削除すること
+  return 'unlocked';
+  // return 'locked';
 }
 
 function stageBgColor(status: StageStatus, stageIndex: number): string {

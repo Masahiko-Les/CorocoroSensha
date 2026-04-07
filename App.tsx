@@ -7,6 +7,7 @@ import { GameBoard } from './src/components/GameBoard';
 import { HomeScreen } from './src/components/HomeScreen';
 import { ShopScreen } from './src/components/ShopScreen';
 import { SettingsScreen } from './src/components/SettingsScreen';
+import { AllClearScreen } from './src/components/AllClearScreen';
 import { STAGE_COUNT, } from './src/game/stage';
 import {
   STAGE_REWARDS,
@@ -17,9 +18,11 @@ import { PlayerUpgrades } from './src/game/types';
 
 const STORAGE_KEY = 'corocoro_save_v1';
 
-type Screen = 'home' | 'game' | 'shop' | 'settings';
+type Screen = 'home' | 'game' | 'shop' | 'settings' | 'allclear';
 
 const DEFAULT_UPGRADES: PlayerUpgrades = { fireRate: 0, moveSpeed: 0, maxHp: 0 };
+// TODO: 開発用 全レベル10 ↓ リリース前に削除すること
+const DEV_UPGRADES: PlayerUpgrades = { fireRate: 10, moveSpeed: 10, maxHp: 10 };
 
 export default function App() {
   const { width, height } = useWindowDimensions();
@@ -27,7 +30,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('home');
   const [selectedStage, setSelectedStage] = useState<number>(0);
   const [money, setMoney] = useState<number>(0);
-  const [upgrades, setUpgrades] = useState<PlayerUpgrades>(DEFAULT_UPGRADES);
+  const [upgrades, setUpgrades] = useState<PlayerUpgrades>(DEV_UPGRADES);
   const [clearedStages, setClearedStages] = useState<boolean[]>(
     Array.from({ length: 30 }, () => false)
   );
@@ -41,7 +44,9 @@ export default function App() {
         try {
           const saved = JSON.parse(raw);
           if (typeof saved.money === 'number') setMoney(saved.money);
-          if (saved.upgrades) setUpgrades(saved.upgrades);
+          // TODO: 開発用 アップグレードをDEV_UPGRADESで固定（リリース前に下の行を有効に戻す）
+          // if (saved.upgrades) setUpgrades(saved.upgrades);
+          setUpgrades(DEV_UPGRADES);
           if (Array.isArray(saved.clearedStages)) setClearedStages(saved.clearedStages);
         } catch {
           // コーラプト時はデフォルトのまま
@@ -80,7 +85,8 @@ export default function App() {
     if (selectedStage + 1 < STAGE_COUNT) {
       setSelectedStage((s) => s + 1);
     } else {
-      setScreen('home');
+      // 最終ステージクリア → 全クリア演出へ
+      setScreen('allclear');
     }
   };
 
@@ -133,6 +139,8 @@ export default function App() {
           onGoHome={() => setScreen('home')}
           onReset={handleReset}
         />
+      ) : screen === 'allclear' ? (
+        <AllClearScreen onGoHome={() => setScreen('home')} />
       ) : (
         <GameBoard
           key={selectedStage}

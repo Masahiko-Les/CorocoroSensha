@@ -73,9 +73,11 @@ export const Hud: React.FC<Props> = ({ hp, maxHp, phase, stageName, stageReward,
           {phase === 'clear' && (
             <Text style={styles.rewardText}>💰 報奨金 +{stageReward.toLocaleString()}</Text>
           )}
-          {phase === 'clear' && !isLastStage && (
+          {phase === 'clear' && (
             <TouchableOpacity style={styles.nextStageBtn} onPress={onNextStage}>
-              <Text style={styles.nextStageText}>次のステージへ</Text>
+              <Text style={styles.nextStageText}>
+                {isLastStage ? '🎊 全クリア演出へ' : '次のステージへ'}
+              </Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.restartBtn} onPress={onRestart}>
