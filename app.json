@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.masahiko.corocorosensha",
+      "bundleIdentifier": "com.fujitamasahiko.corocorosensha",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
