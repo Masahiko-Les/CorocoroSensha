@@ -7,9 +7,10 @@ import {
   PLAYER_RADIUS, PLAYER_INVINCIBLE_MS,
   BULLET_RADIUS, BULLET_SPEED, BULLET_DAMAGE,
   ENEMY_RADIUS, ENEMY_SPEED, ENEMY_CONTACT_DAMAGE,
+  ENEMY_RED_CHASE_MS, ENEMY_RED_RANDOM_MS,
   ENEMY_YELLOW_SPEED, ENEMY_YELLOW_RANDOM_MS, ENEMY_YELLOW_CHASE_MS, ITEM_RADIUS,
   ENEMY_BLUE_SPEED, ENEMY_BLUE_FLEE_SPEED, ENEMY_BLUE_HP, ENEMY_BLUE_FLEE_MS, ENEMY_BLUE_RANDOM_MS,
-  CELL_WALL, CELL_GOAL, CELL_FLOOR, CELL_START, CELL_ENEMY, CELL_ITEM,
+  CELL_WALL, CELL_GOAL, CELL_FLOOR, CELL_START, CELL_ENEMY, CELL_ITEM, CELL_YELLOW_ENEMY, CELL_BLUE_ENEMY,
   STAGE_REWARDS, FIRE_RATE_LEVELS, MOVE_SPEED_LEVELS, MAX_HP_LEVELS,
 } from '../game/constants';
 import { getStageMap, getMapCols, getMapRows, getStartPos, getEnemyStartPositions, getYellowEnemyStartPositions, getBlueEnemyStartPositions, getStageItemPositions, getCellAt, getEnemyHp, STAGE_COUNT } from '../game/stage';
@@ -26,12 +27,14 @@ import { Hud } from './Hud';
 // タイル色
 function tileColor(cell: number): string {
   switch (cell) {
-    case CELL_WALL:  return '#5D4037';
-    case CELL_GOAL:  return '#FFD600';
-    case CELL_START: return '#A5D6A7';
-    case CELL_ENEMY: return '#FFCCBC';
-    case CELL_ITEM:  return '#BDBDBD';
-    default:         return '#BDBDBD';
+    case CELL_WALL:         return '#5D4037';
+    case CELL_GOAL:         return '#FFD600';
+    case CELL_START:        return '#A5D6A7';
+    case CELL_ENEMY:        return '#FFCCBC';
+    case CELL_ITEM:         return '#BDBDBD';
+    case CELL_YELLOW_ENEMY: return '#BDBDBD'; // 床と同色
+    case CELL_BLUE_ENEMY:   return '#BDBDBD'; // 床と同色
+    default:                return '#BDBDBD';
   }
 }
 
@@ -72,8 +75,8 @@ function createInitialState(stageIndex: number, playerMaxHp: number): {
     maxHp: 1,
     enemyType: 'red' as const,
     mode: 'chase' as const,
-    modeUntil: 0,
-    randomDir: { x: 0, y: 0 },
+    modeUntil: now + ENEMY_RED_CHASE_MS,
+    randomDir: randomDir(),
   }));
 
   const yellowPositions = getYellowEnemyStartPositions(stageIndex, TILE_SIZE);
@@ -365,15 +368,29 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
             e.pos = newEPos;
           }
         } else {
-          // 赤: 追尾のみ
-          const dir = normalize({
-            x: st.player.pos.x - e.pos.x,
-            y: st.player.pos.y - e.pos.y,
-          });
-          e.pos = resolveWallCollision({
+          // 赤: 追尾 ↔ ランダム移動 切替
+          if (now > e.modeUntil) {
+            if (e.mode === 'chase') {
+              e.mode = 'random';
+              e.modeUntil = now + ENEMY_RED_RANDOM_MS;
+              e.randomDir = randomDir();
+            } else {
+              e.mode = 'chase';
+              e.modeUntil = now + ENEMY_RED_CHASE_MS;
+            }
+          }
+          const dir = e.mode === 'random'
+            ? e.randomDir
+            : normalize({ x: st.player.pos.x - e.pos.x, y: st.player.pos.y - e.pos.y });
+          const prevPos = { ...e.pos };
+          const newEPos = resolveWallCollision({
             x: e.pos.x + dir.x * ENEMY_SPEED * dtScale,
             y: e.pos.y + dir.y * ENEMY_SPEED * dtScale,
           }, ENEMY_RADIUS, stageIndex);
+          if (e.mode === 'random' && dist(prevPos, newEPos) < 0.1) {
+            e.randomDir = randomDir();
+          }
+          e.pos = newEPos;
         }
       });
 
@@ -547,6 +564,7 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
           phase={phase}
           stageName={`ステージ ${stageIndex + 1}`}
           stageReward={stageReward}
+          allEnemiesDefeated={st.enemies.length === 0}
           onRestart={handleRestart}
           onResume={handleResume}
           onGoHome={onGoHome}

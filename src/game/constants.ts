@@ -29,6 +29,10 @@ export const ENEMY_SPEED = 0.7;
 export const ENEMY_HP = 1;
 export const ENEMY_CONTACT_DAMAGE = 1;
 
+// 赤色敵
+export const ENEMY_RED_CHASE_MS  = 2500;  // 追尾モードの継続時間
+export const ENEMY_RED_RANDOM_MS = 1200;  // ランダム移動モードの継続時間
+
 // 黄色敵
 export const ENEMY_YELLOW_SPEED = 1.5;       // 赤の約2倍
 export const ENEMY_YELLOW_RANDOM_MS = 1500;  // ランダム移動の継続時間
@@ -80,3 +84,5 @@ export const CELL_START = 2;
 export const CELL_GOAL = 3;
 export const CELL_ENEMY = 4;
 export const CELL_ITEM = 5;
+export const CELL_YELLOW_ENEMY = 6;  // 黄色敵のスポーン地点
+export const CELL_BLUE_ENEMY   = 7;  // 青色敵のスポーン地点
