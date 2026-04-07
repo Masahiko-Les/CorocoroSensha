@@ -284,8 +284,19 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
         return true;
       });
 
+      // ---- 画面内カリング判定 ----
+      const vpX = Math.max(0, Math.min(st.player.pos.x - viewWidth / 2, MAP_PX_W - viewWidth));
+      const vpY = Math.max(0, Math.min(st.player.pos.y - viewHeight / 2, MAP_PX_H - viewHeight));
+      const CULL_MARGIN = TILE_SIZE * 2;
+      const isOnScreen = (pos: { x: number; y: number }) =>
+        pos.x >= vpX - CULL_MARGIN &&
+        pos.x <= vpX + viewWidth + CULL_MARGIN &&
+        pos.y >= vpY - CULL_MARGIN &&
+        pos.y <= vpY + viewHeight + CULL_MARGIN;
+
       // ---- 敵の更新（赤: 追尾 / 黄: ランダム↔追尾切替） ----
       st.enemies.forEach((e) => {
+        if (!isOnScreen(e.pos)) return; // 画面外はスキップ
         if (e.enemyType === 'yellow') {
           // モード切替判定
           if (now > e.modeUntil) {
@@ -368,7 +379,9 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
 
       // ---- 敵 vs 敵 の分離（重なり防止） ----
       for (let i = 0; i < st.enemies.length; i++) {
+        if (!isOnScreen(st.enemies[i].pos)) continue; // 画面外はスキップ
         for (let j = i + 1; j < st.enemies.length; j++) {
+          if (!isOnScreen(st.enemies[j].pos)) continue;
           const ei = st.enemies[i];
           const ej = st.enemies[j];
           const minDist = ENEMY_RADIUS * 2;
@@ -468,26 +481,37 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
   const offsetX = Math.max(0, Math.min(st.player.pos.x - viewWidth / 2, MAP_PX_W - viewWidth));
   const offsetY = Math.max(0, Math.min(st.player.pos.y - viewHeight / 2, MAP_PX_H - viewHeight));
 
+  // 描画タイル範囲（画面外タイルはスキップ）
+  const mapData = getStageMap(stageIndex);
+  const tileColStart = Math.max(0, Math.floor(offsetX / TILE_SIZE) - 1);
+  const tileColEnd   = Math.min(getMapCols(stageIndex), Math.ceil((offsetX + viewWidth)  / TILE_SIZE) + 1);
+  const tileRowStart = Math.max(0, Math.floor(offsetY / TILE_SIZE) - 1);
+  const tileRowEnd   = Math.min(getMapRows(stageIndex), Math.ceil((offsetY + viewHeight) / TILE_SIZE) + 1);
+
   return (
     <TouchableWithoutFeedback onPress={handleTap}>
       <View style={styles.container}>
         <Svg width={viewWidth} height={viewHeight}>
         <G x={-offsetX} y={-offsetY}>
-          {/* タイル描画 */}
-          {getStageMap(stageIndex).map((row, ri) =>
-            row.map((cell, ci) => (
-              <Rect
-                key={`${ri}-${ci}`}
-                x={ci * TILE_SIZE}
-                y={ri * TILE_SIZE}
-                width={TILE_SIZE}
-                height={TILE_SIZE}
-                fill={tileColor(cell)}
-                stroke={cell === CELL_WALL ? '#3E2723' : '#9E9E9E'}
-                strokeWidth={cell === CELL_WALL ? 1 : 0.5}
-              />
-            ))
-          )}
+          {/* タイル描画（画面内のみ） */}
+          {mapData.slice(tileRowStart, tileRowEnd).map((row, rOffset) => {
+            const ri = rOffset + tileRowStart;
+            return row.slice(tileColStart, tileColEnd).map((cell, cOffset) => {
+              const ci = cOffset + tileColStart;
+              return (
+                <Rect
+                  key={`${ri}-${ci}`}
+                  x={ci * TILE_SIZE}
+                  y={ri * TILE_SIZE}
+                  width={TILE_SIZE}
+                  height={TILE_SIZE}
+                  fill={tileColor(cell)}
+                  stroke={cell === CELL_WALL ? '#3E2723' : '#9E9E9E'}
+                  strokeWidth={cell === CELL_WALL ? 1 : 0.5}
+                />
+              );
+            });
+          })}
 
           {/* アイテム */}
           {st.items.map((item) => (
@@ -499,8 +523,13 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
             <Bullet key={b.id} bullet={b} />
           ))}
 
-          {/* 敵 */}
-          {st.enemies.map((e) => (
+          {/* 敵（画面内のみ） */}
+          {st.enemies.filter(e =>
+            e.pos.x >= offsetX - TILE_SIZE &&
+            e.pos.x <= offsetX + viewWidth + TILE_SIZE &&
+            e.pos.y >= offsetY - TILE_SIZE &&
+            e.pos.y <= offsetY + viewHeight + TILE_SIZE
+          ).map((e) => (
             <Enemy key={e.id} enemy={e} />
           ))}
 

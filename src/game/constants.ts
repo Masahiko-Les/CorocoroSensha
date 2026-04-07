@@ -35,8 +35,8 @@ export const ENEMY_YELLOW_RANDOM_MS = 1500;  // ランダム移動の継続時�
 export const ENEMY_YELLOW_CHASE_MS  = 2000;  // 追尾移動の継続時間
 
 // 青色敵
-export const ENEMY_BLUE_SPEED     = 0.07;  // ランダム移動時の速度
-export const ENEMY_BLUE_FLEE_SPEED = 1.2;  // 逃げるときの速度
+export const ENEMY_BLUE_SPEED     = 2.25;  // ランダム移動時の速度 (黄色の1.5倍)
+export const ENEMY_BLUE_FLEE_SPEED = 2.25;  // 逃げるときの速度 (黄色の1.5倍)
 export const ENEMY_BLUE_HP         = 10;
 export const ENEMY_BLUE_FLEE_MS    = 2500; // 逃げる継続時間
 export const ENEMY_BLUE_RANDOM_MS  = 2000; // ランダム移動の継続時間
