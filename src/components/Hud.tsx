@@ -13,6 +13,7 @@ interface Props {
   onResume: () => void;
   onGoHome: () => void;
   onNextStage: () => void;
+  onForceClear: () => void;
   isLastStage: boolean;
 }
 
@@ -20,31 +21,26 @@ function renderHP(hp: number, maxHp: number): string {
   return '❤️'.repeat(Math.max(0, hp)) + '🖤'.repeat(Math.max(0, maxHp - hp));
 }
 
-export const Hud: React.FC<Props> = ({ hp, maxHp, phase, stageName, stageReward, allEnemiesDefeated, onRestart, onResume, onGoHome, onNextStage, isLastStage }) => {
+export const Hud: React.FC<Props> = ({ hp, maxHp, phase, stageName, stageReward, allEnemiesDefeated, onRestart, onResume, onGoHome, onNextStage, onForceClear, isLastStage }) => {
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (allEnemiesDefeated && phase === 'playing') {
-      // 即座に表示
+      // 即座に表示（1にセット）
       toastOpacity.setValue(1);
-      // 2秒後から1秒かけてフェードアウト
-      const timer = setTimeout(() => {
-        Animated.timing(toastOpacity, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }).start();
-      }, 2000);
-      return () => clearTimeout(timer);
+      // ボタンがある間はフェードアウトしない
     }
   }, [allEnemiesDefeated]);
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {/* 全滅通知（ゲーム中のみ、画面下部にトースト表示） */}
+      {/* 全滅通知（ゲーム中のみ、画面下部にトースト+クリアボタン） */}
       {allEnemiesDefeated && phase === 'playing' && (
-        <Animated.View style={[styles.defeatedToast, { opacity: toastOpacity }]} pointerEvents="none">
+        <Animated.View style={[styles.defeatedToast, { opacity: toastOpacity }]}>
           <Text style={styles.defeatedText}>✅ おめでとうございます。敵を全て倒しました！</Text>
+          <TouchableOpacity style={styles.forceClearBtn} onPress={onForceClear}>
+            <Text style={styles.forceClearBtnText}>🌟 ステージクリアする</Text>
+          </TouchableOpacity>
         </Animated.View>
       )}
       {/* トップバー: ホームボタン / ステージ名 / HP */}
@@ -140,15 +136,31 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     backgroundColor: 'rgba(0,0,0,0.55)',
     paddingHorizontal: 20,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    gap: 10,
   },
   defeatedText: {
     color: '#B9F6CA',
     fontSize: 14,
     fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  forceClearBtn: {
+    backgroundColor: '#1B5E20',
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#69F0AE',
+  },
+  forceClearBtnText: {
+    color: '#CCFF90',
+    fontSize: 14,
+    fontWeight: 'bold',
     letterSpacing: 0.5,
   },
   resultText: {

@@ -162,6 +162,14 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
   const onClearRef = useRef(onClear);
   onClearRef.current = onClear;
 
+  // 強制クリア（全敵全滅後にボタンから呼び出す）
+  const handleForceClear = useCallback(() => {
+    if (clearedRef.current) return;
+    clearedRef.current = true;
+    onClearRef.current();
+    setPhase('clear');
+  }, []);
+
   // 点滅タイマー
   const blinkTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -569,6 +577,7 @@ export const GameBoard: React.FC<Props> = ({ viewWidth, viewHeight, stageIndex, 
           onResume={handleResume}
           onGoHome={onGoHome}
           onNextStage={onNextStage}
+          onForceClear={handleForceClear}
           isLastStage={stageIndex === STAGE_COUNT - 1}
         />
       </View>
