@@ -21,9 +21,6 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "",
-        "ascAppId": "",
-        "appleTeamId": "",
         "sku": "corocorosensha-ios-20260402",
         "bundleIdentifier": "com.fujitamasahiko.corocorosensha"
       }
